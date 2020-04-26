@@ -7,16 +7,17 @@
 class Server: public QWidget{
     Q_OBJECT
 public:
-    Server(quint16, QWidget *pwgt = nullptr);
+    Server(QWidget *pwgt = nullptr);
     void consoleOutput(QString, qint16);
 private:
-    quint16 Port;
+    quint16 port;
     QTextEdit *console;
     QDateTime *time;
     QTcpServer *serverSocket;
 public slots:
     void slotNewConnection();
     void slotClientState(QAbstractSocket::SocketState);
+    void slotSetPort();//To set server port.
 };
 
 #endif

@@ -1,20 +1,25 @@
 #include "server.h"
 
-Server::Server(quint16 portNumber, QWidget *pwgt)
-    :QWidget(pwgt), Port(portNumber),
+Server::Server(QWidget *pwgt)
+    :QWidget(pwgt),
     console(new QTextEdit),
-    time(new QDateTime), serverSocket(new QTcpServer(this)){
+    time(new QDateTime),
+    serverSocket(new QTcpServer(this)){
 
     console->setReadOnly(true);
 
     QLabel *windowTitle = new QLabel("SERVER");
-    QVBoxLayout *layout = new QVBoxLayout;
-    layout->addWidget(windowTitle);
-    layout->addWidget(console);
-    setLayout(layout);
+    QPushButton *buttPort = new QPushButton("port");
+    QVBoxLayout *layoutVer = new QVBoxLayout;
+    QHBoxLayout *layoutHor = new QHBoxLayout;
+    layoutHor->addWidget(windowTitle);
+    layoutHor->addWidget(buttPort);
+    layoutVer->addLayout(layoutHor);
+    layoutVer->addWidget(console);
+    setLayout(layoutVer);
     this->resize(800, 500);
 
-    serverSocket->listen(QHostAddress::Any, Port);
+    serverSocket->listen(QHostAddress::Any, port);
     if(!serverSocket->isListening()){
         consoleOutput("To bind address and port to the server socket.", 0);
         serverSocket->close();
@@ -24,6 +29,7 @@ Server::Server(quint16 portNumber, QWidget *pwgt)
         consoleOutput("To bind address and port to the server socket.<SUCCESS>", 1);
 
     connect(serverSocket, SIGNAL(newConnection()), this, SLOT(slotNewConnection()));
+    connect(buttPort, SIGNAL(clicked()), this, SLOT(slotSetPort()));
 }
 
 void Server::slotNewConnection(){//To create client socket during new connection.
@@ -84,4 +90,23 @@ void Server::consoleOutput(QString message, qint16 status){
     }
     message = time->currentDateTime().toString("hh:mm:ss.zzz") + "|" + state + "|" + message;
     console->append(message);
+}
+
+void Server::slotSetPort(){
+    QWidget *windowPort = new QWidget(this, Qt::Window);
+    QLineEdit *linePort = new QLineEdit;
+    QLabel *lblPort = new QLabel("Port:");
+    QPushButton *buttOK = new QPushButton("Ok");
+    QVBoxLayout * layout = new QVBoxLayout;
+    layout->addWidget(lblPort);
+    layout->addWidget(linePort);
+    layout->addWidget(buttOK);
+    windowPort->setLayout(layout);
+    windowPort->resize(150, 150);
+    windowPort->show();
+
+    connect(buttOK, &QPushButton::clicked, [this, linePort, windowPort](){
+        port = linePort->text().toInt();
+        windowPort->close();
+    });
 }
