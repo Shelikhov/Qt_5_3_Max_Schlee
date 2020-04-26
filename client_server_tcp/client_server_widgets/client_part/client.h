@@ -7,15 +7,20 @@
 class Client: public QWidget{
     Q_OBJECT
 public:
-    Client(QString, quint16, QWidget *pwgt = 0);
+    Client(QWidget *pwgt = 0);
+    QHostAddress serverAddress;
+    qint16 port;
+    void consoleOutput(QString, qint16);
 private:
     QTcpSocket *socket;
-    QTextEdit *consoleOutput;
+    QTextEdit *console;
     QLabel *lblClientState;
     QTime *time;
 public slots:
-    void slotReadData();
-    void slotClientState(QAbstractSocket::SocketState);
+    void slotReadData();//To write data from socket to consoleOut.
+    void slotClientState(QAbstractSocket::SocketState);//To display state of client connection with server.
+    void slotSetServerParametrs();//To set server host name and port.
+    void slotOutputError(QAbstractSocket::SocketError);//To output errors occured with the socket to client console.
 };
 
 #endif

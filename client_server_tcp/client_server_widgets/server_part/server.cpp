@@ -1,25 +1,27 @@
 #include "server.h"
 
-Server::Server(quint16 portNumber, QWidget *pwgt):QWidget(pwgt), Port(portNumber){
+Server::Server(quint16 portNumber, QWidget *pwgt)
+    :QWidget(pwgt), Port(portNumber),
+    console(new QTextEdit),
+    time(new QDateTime), serverSocket(new QTcpServer(this)){
 
-    consoleOutput = new QTextEdit;
-    consoleOutput->setReadOnly(true);
-
-    time = new QDateTime();
+    console->setReadOnly(true);
 
     QLabel *windowTitle = new QLabel("SERVER");
     QVBoxLayout *layout = new QVBoxLayout;
     layout->addWidget(windowTitle);
-    layout->addWidget(consoleOutput);
+    layout->addWidget(console);
     setLayout(layout);
     this->resize(800, 500);
 
-    serverSocket = new QTcpServer();//To create server socket.
-    serverSocket->listen(QHostAddress::LocalHost, Port);
-    if(!serverSocket->isListening())
-        consoleOutput->append((time->currentDateTime()).toString("hh:mm:ss.zzz") + "|ERROR|To bind address and port to the server socket.");
+    serverSocket->listen(QHostAddress::Any, Port);
+    if(!serverSocket->isListening()){
+        consoleOutput("To bind address and port to the server socket.", 0);
+        serverSocket->close();
+        return;
+    }
     else
-        consoleOutput->append((time->currentDateTime()).toString("hh:mm:ss.zzz") + "|INFO|To bind address and port to the server socket.<SUCCESS>");
+        consoleOutput("To bind address and port to the server socket.<SUCCESS>", 1);
 
     connect(serverSocket, SIGNAL(newConnection()), this, SLOT(slotNewConnection()));
 }
@@ -27,26 +29,59 @@ Server::Server(quint16 portNumber, QWidget *pwgt):QWidget(pwgt), Port(portNumber
 void Server::slotNewConnection(){//To create client socket during new connection.
     QTcpSocket *clientSocket = serverSocket->nextPendingConnection();
     if(clientSocket->state() != QAbstractSocket::ConnectedState)
-        consoleOutput->append((time->currentDateTime()).toString("hh:mm:ss.zzz") + "|ERROR|New connection. IP address: " + (clientSocket->peerAddress()).toString());
+        consoleOutput("New connection. IP address: " + clientSocket->peerAddress().toString(), 0);
     else
-        consoleOutput->append((time->currentDateTime()).toString("hh:mm:ss.zzz") + "|INFO|New connection. IP address: " + (clientSocket->peerAddress()).toString() + "<SUCCESS>");
+        consoleOutput("New connection. IP address: " + clientSocket->peerAddress().toString() + "<SUCCESS>", 1);
 
     QTimer *timer = new QTimer;//Through every 3 seconds to send text to client
     timer->start(3000);
 
-    connect(timer, &QTimer::timeout, [clientSocket](){
+//    connect(timer, &QTimer::timeout, [clientSocket](){
         QByteArray data;
         QDataStream dataOut(&data, QIODevice::ReadWrite);
         dataOut.setVersion(QDataStream::Qt_5_14);
-        dataOut << "test route";
-        clientSocket->write(data);});
+        dataOut << "Test message from server!!!";
+        clientSocket->write(data);//});
+
     connect(clientSocket, &QTcpSocket::disconnected, [clientSocket, this](){
         clientSocket->deleteLater();
         if(clientSocket->state() != QAbstractSocket::UnconnectedState){
-            consoleOutput->append((time->currentDateTime()).toString("hh:mm:ss.zzz") + "|ERROR|Disconnection. IP address: " + (clientSocket->peerAddress()).toString());
+            consoleOutput("Disconnection. IP address: " + clientSocket->peerAddress().toString(), 0);
             clientSocket->close();
         }else{
-            consoleOutput->append((time->currentDateTime()).toString("hh:mm:ss.zzz") + "|INFO|Disconnection success. IP address: " + (clientSocket->peerAddress()).toString());
+            consoleOutput("Disconnection. IP address: " + clientSocket->peerAddress().toString() + "<SUCCESS>", 1);
             clientSocket->close();
         }});
+    connect(clientSocket, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SLOT(slotClientState(QAbstractSocket::SocketState)));
+}
+
+void Server::slotClientState(QAbstractSocket::SocketState state){
+    switch (state) {
+    case 0:
+        consoleOutput("Socket state: unconnected.", 2);
+    case 1:
+        consoleOutput("Socket state: server lookup...", 1);
+    case 2:
+        consoleOutput("Socket state: connecting to server...", 1);
+    case 3:
+        consoleOutput("Socket state: connected.", 1);
+    case 6:
+        consoleOutput("Socket state: socket closed.", 2);
+    }
+}
+
+void Server::consoleOutput(QString message, qint16 status){
+    QString state;
+    switch (status) {
+    case 0:
+        state = "ERROR";
+    case 1:
+        state = "INFO";
+    case 2:
+        state = "WARN";
+    default:
+        state = "UNDEF";
+    }
+    message = time->currentDateTime().toString("hh:mm:ss.zzz") + "|" + state + "|" + message;
+    console->append(message);
 }
